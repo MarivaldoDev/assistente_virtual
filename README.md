@@ -1,2 +1,4 @@
-# assistente_virtal
+Bibliotecas usadas:
+
+
  
