@@ -1,4 +1,4 @@
-###ASSISTENTE VIRTUAL
+ASSISTENTE VIRTUAL
 
 Bibliotecas usadas disponíveis no arquivo: "Bibliotecas.txt".
 
