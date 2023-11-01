@@ -16,7 +16,7 @@ class Alexa():
         self.voz()
         self.executar()
         self.ver_videos()
-        self.pesquisar
+        self.pesquisar()
 
     def temperaturas(self, cidade):
         try:
@@ -97,7 +97,7 @@ class Alexa():
                     audio = rec.listen(mic)
                     texto = rec.recognize_google(audio, language="pt-BR")
                 if self.temperaturas(texto) == 0:
-                    self.voz("desculpe! não encontrei a temperatura da sua cidade.")
+                    self.voz("desculpe! não é possível ter a informação sem internet.")
                 else:
                     self.voz(f"A temperatura em {texto} nesse momento é de {self.temperaturas(texto)}°")
 
