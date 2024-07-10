@@ -1,4 +1,4 @@
-<h1>ASSISTENTE VIRTUAL</h1>
+# Assistente Virtual
 
 Bibliotecas usadas disponíveis no arquivo: "Bibliotecas.txt".
 
@@ -9,3 +9,5 @@ Assistente virtual com algumas funções, como por exemplo:
 - Player de vídeos
 - Temperatura da sua cidade atualizada
 - Abertura de programas do PC
+
+# Acompanhe
