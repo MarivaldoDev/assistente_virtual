@@ -11,3 +11,4 @@ Assistente virtual com algumas funções, como por exemplo:
 - Abertura de programas do PC
 
 # Acompanhe
+https://github.com/MarivaldoDev/assistente_virtual/assets/126726979/471331fb-5dfe-487d-94df-87a11035bc4f
