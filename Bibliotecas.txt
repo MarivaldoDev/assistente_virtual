@@ -1,8 +1,0 @@
-speechrecognition
-pyttsx3
-datetime
-pywhatkit
-pyautogui
-requests
-webbrowser
-os
