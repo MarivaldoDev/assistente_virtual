@@ -4,6 +4,8 @@ from langchain.agents import tool
 from decouple import config
 from datetime import datetime
 import os
+import git
+from pathlib import Path
 
 
 @tool
@@ -58,7 +60,7 @@ def buscar_cotacoes(cotacao: str) -> str:
         dados = r.json()
         resultado = dados[cotacao.upper() + 'BRL']['bid']
         resultado = float(resultado)
-        return f"R$ {resultado:.2f}"
+        print(f"R$ {resultado:.2f}")
     else:
         return 'Erro ao buscar cotação.'
     
@@ -67,3 +69,32 @@ def buscar_cotacoes(cotacao: str) -> str:
 def abrir_apps(app: str) -> None:
     '''Abre o aplicativo informado lembrando sempre que estamos no Linux.'''
     os.system(f"{app}")
+
+@tool
+def gerar_descricao(diff_texto: str, llm) -> str:
+        '''Gera uma descrição clara e concisa das alterações feitas no código.'''
+        prompt = f"""
+    Explique claramente o que foi alterado neste diff de código. Seja conciso e responda em português.
+
+    Diff:
+    {diff_texto}
+    """
+
+        try:
+            resposta = llm.invoke(prompt)
+            return resposta.strip() if isinstance(resposta, str) else resposta.content.strip()
+        except Exception as e:
+            print(f"[Erro ao chamar o modelo]: {e}")
+            return "Não foi possível gerar descrição."
+
+@tool       
+def sugerir_commit():
+    '''Sugere um commit baseado nas alterações feitas no repositório.'''
+    CAMINHO_REPO = Path("/home/mariva/Documentos/projetos/assistente_virtual")  # Ex: Path("/home/mariva/Documentos/meu_projeto")
+
+    # Abrir repositório
+    repo = git.Repo(CAMINHO_REPO)
+    diff = repo.git.diff('--cached')  # apenas os arquivos adicionados com `git add`
+    
+    return diff
+

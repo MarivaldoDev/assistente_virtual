@@ -1,5 +1,5 @@
 import speech_recognition as sr
-from utiuls.functions import ver_videos, temperaturas, pesquisar, hora_atual, data_atual, buscar_cotacoes, abrir_apps
+from utiuls.functions import ver_videos, temperaturas, pesquisar, hora_atual, data_atual, buscar_cotacoes, abrir_apps, gerar_descricao, sugerir_commit
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from decouple import config
@@ -7,8 +7,8 @@ from langchain_groq import ChatGroq
 import asyncio
 import edge_tts
 import pygame
-import sqlite3
-from difflib import SequenceMatcher
+from database import buscas_e_contextos
+
 
 
 rec = sr.Recognizer()
@@ -32,24 +32,33 @@ class Alexa():
 
             resposta = self.assistente(comando)
             asyncio.run(self.voz_assistente(resposta))
-            self.salvar_memoria(comando, resposta)
+            buscas_e_contextos.salvar_memoria(comando, resposta)
 
 
 
     def assistente(self, comando: str) -> str:
         api_key = config("API_KEY")
-        llm = ChatGroq(model="llama3-70b-8192", api_key=api_key, temperature=0.2)
+        self.llm = ChatGroq(model="llama3-70b-8192", api_key=api_key, temperature=0.2)
         try:
-            contexto = self.lembrar_contexto(comando)
+            contexto = buscas_e_contextos.lembrar_contexto(comando)
         except Exception as e:
             print(f"[Erro ao lembrar contexto]: {e}")
             contexto = None
 
         mensagens = [
-            ("system", "Você é um assistente virtual inteligente que SEMPRE responde em português do Brasil. "
-            "Responda de forma clara, tentando ser o mais breve possível, descontraído e NUNCA leia os asteriscos. "
-            "Use ferramentas apenas quando for necessário, caso contrário responda com seu próprio conhecimento. "
-            "Se houver mensagens anteriores, use-as como referência de contexto."),
+            (
+                "system",
+                (
+                    "Você é Alexa, um assistente virtual inteligente que SEMPRE responde em português do Brasil. "
+                    "Seja claro, breve, amigável e NUNCA leia ou mencione asteriscos. "
+                    "Use ferramentas apenas quando necessário e explique de forma simples quando usar uma ferramenta. "
+                    "Seja descontraído, mas profissional. "
+                    "Se houver mensagens anteriores, utilize-as como contexto para melhorar sua resposta. "
+                    "Nunca invente informações e, se não souber, diga que não sabe. "
+                    "Se o usuário pedir para executar uma ação (como abrir apps, buscar vídeos, consultar temperatura, etc), utilize as ferramentas disponíveis. "
+                    "Caso a resposta seja apenas informativa, responda com seu próprio conhecimento."
+                ),
+            ),
         ]
 
         # Adiciona o contexto como uma 'mensagem do usuário anterior'
@@ -66,9 +75,9 @@ class Alexa():
 
         
 
-        tools = [temperaturas, ver_videos, pesquisar, data_atual, hora_atual, buscar_cotacoes, abrir_apps]
+        tools = [temperaturas, ver_videos, pesquisar, data_atual, hora_atual, buscar_cotacoes, abrir_apps, sugerir_commit, gerar_descricao]
         agent = create_tool_calling_agent(
-            llm=llm,
+            llm=self.llm,
             tools=tools,
             prompt=prompt
         )
@@ -87,7 +96,7 @@ class Alexa():
             return resposta['output']
         except Exception as e:
             print(f"[Erro no agente]: {e}")
-            return llm.invoke(comando)
+            return self.llm.invoke(comando)
 
 
     def escutar_comando(self) -> str:
@@ -112,56 +121,16 @@ class Alexa():
 
     async def voz_assistente(self, texto: str) -> None:
         comunicador = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural")
-        await comunicador.save("fala.mp3")
+        await comunicador.save(r"audio/fala.mp3")
 
         pygame.mixer.init()
-        pygame.mixer.music.load("fala.mp3")
+        pygame.mixer.music.load(r"audio/fala.mp3")
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             pygame.time.Clock().tick(10)
 
 
-    def salvar_memoria(self, comando: str, resposta: str):
-        con = sqlite3.connect('memoria.db')
-        cursor = con.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS memoria (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                comando TEXT NOT NULL,
-                resposta TEXT NOT NULL
-            )
-        ''')
-
-        cursor.execute('INSERT INTO memoria (comando, resposta) VALUES (?, ?)', (comando, resposta))
-        con.commit()
-        con.close()
-
-
-    def similaridade(self, a: str, b: str) -> float:
-        return SequenceMatcher(None, a.lower(), b.lower()).ratio()
-
-
-    def lembrar_contexto(self, pergunta_atual: str, limiar: float = 0.6):
-        con = sqlite3.connect('memoria.db')
-        cursor = con.cursor()
-        cursor.execute('SELECT comando, resposta FROM memoria')
-        memoria = cursor.fetchall()
-        con.close()
-
-        mais_parecido = None
-        maior_sim = 0.0
-
-        for comando, resposta in memoria:
-            sim = self.similaridade(pergunta_atual, comando)
-            if sim > maior_sim and sim >= limiar:
-                maior_sim = sim
-                mais_parecido = (comando, resposta)
-
-        if mais_parecido:
-            comando, resposta = mais_parecido
-            return f"Anteriormente, você perguntou: '{comando}' e a resposta foi: '{resposta}'."
-
-        return False
+   
 
 
 Alexa()
