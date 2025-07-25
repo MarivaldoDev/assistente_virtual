@@ -1,4 +1,7 @@
 venv
 .env
-__pycache__/
-*.db
+pycache
+__pycache__
+
+# Ignore the database file
+/memoria.db

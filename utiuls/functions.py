@@ -6,6 +6,12 @@ from datetime import datetime
 import os
 import git
 from pathlib import Path
+from decouple import config
+from langchain_groq import ChatGroq
+
+
+api_key = config("API_KEY")
+llm = ChatGroq(model="llama3-70b-8192", api_key=api_key)
 
 
 @tool
@@ -70,24 +76,8 @@ def abrir_apps(app: str) -> None:
     '''Abre o aplicativo informado lembrando sempre que estamos no Linux.'''
     os.system(f"{app}")
 
-@tool
-def gerar_descricao(diff_texto: str, llm) -> str:
-        '''Gera uma descrição clara e concisa das alterações feitas no código.'''
-        prompt = f"""
-    Explique claramente o que foi alterado neste diff de código. Seja conciso e responda em português.
 
-    Diff:
-    {diff_texto}
-    """
 
-        try:
-            resposta = llm.invoke(prompt)
-            return resposta.strip() if isinstance(resposta, str) else resposta.content.strip()
-        except Exception as e:
-            print(f"[Erro ao chamar o modelo]: {e}")
-            return "Não foi possível gerar descrição."
-
-@tool       
 def sugerir_commit():
     '''Sugere um commit baseado nas alterações feitas no repositório.'''
     CAMINHO_REPO = Path("/home/mariva/Documentos/projetos/assistente_virtual")  # Ex: Path("/home/mariva/Documentos/meu_projeto")
@@ -97,4 +87,65 @@ def sugerir_commit():
     diff = repo.git.diff('--cached')  # apenas os arquivos adicionados com `git add`
     
     return diff
+
+
+def gerar_descricao_llm(diff_texto: str) -> str:
+    '''Gera uma descrição clara e concisa das alterações feitas no código.'''
+    prompt = f"""
+    Explique claramente o que foi alterado neste diff de código. Seja conciso e responda em português.
+
+    Diff: {diff_texto}
+    """
+
+    try:
+        resposta = llm.invoke(prompt)
+        return resposta.strip() if isinstance(resposta, str) else resposta.content.strip()
+    except Exception as e:
+        print(f"[Erro ao chamar o modelo]: {e}")
+        return "Não foi possível gerar descrição."
+
+
+
+def classificar_mudanca(descricao: str) -> str:
+    '''Classifica a descrição das alterações feitas no código com uma tag de commit semântico.'''
+    prompt = f"""
+    Classifique a seguinte descrição com uma tag de commit semântico.
+
+    Tags possíveis:
+    - feat
+    - fix
+    - refactor
+    - docs
+    - test
+    - chore
+
+    Descrição:
+    \"\"\"{descricao}\"\"\"
+
+    Responda apenas com a tag correta.
+    """
+    try:
+        resposta = llm.invoke(prompt)
+        if hasattr(resposta, "content"):
+            resposta = resposta.content
+        tag = resposta.strip().lower()
+        if tag in ["feat", "fix", "refactor", "docs", "test", "chore"]:
+            return tag
+        return "chore"
+    except Exception as e:
+        print(f"[Erro ao classificar]: {e}")
+        return "chore"
+
+
+@tool
+def gerar_mensagem_commit() -> str:
+    '''Gera uma mensagem de commit semântico com base nas alterações staged, SEMPRE pulando duas linhas depois do contexto das mudanças.'''
+    diff = sugerir_commit()  # pega o diff atual
+    descricao = gerar_descricao_llm(diff)
+
+    if "Não foi possível gerar" in descricao:
+        return "chore: Atualizações no código"
+
+    tipo = classificar_mudanca(descricao)
+    return f"{tipo}: {descricao}"
 

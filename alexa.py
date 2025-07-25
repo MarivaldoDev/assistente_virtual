@@ -1,5 +1,8 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
+
 import speech_recognition as sr
-from utiuls.functions import ver_videos, temperaturas, pesquisar, hora_atual, data_atual, buscar_cotacoes, abrir_apps, gerar_descricao, sugerir_commit
+from utiuls.functions import *
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from decouple import config
@@ -8,6 +11,7 @@ import asyncio
 import edge_tts
 import pygame
 from database import buscas_e_contextos
+from langchain_core.prompts import MessagesPlaceholder
 
 
 
@@ -35,6 +39,8 @@ class Alexa():
             buscas_e_contextos.salvar_memoria(comando, resposta)
 
 
+    def escapar_chaves(self, texto: str) -> str:
+        return texto.replace("{", "{{").replace("}", "}}")
 
     def assistente(self, comando: str) -> str:
         api_key = config("API_KEY")
@@ -45,37 +51,32 @@ class Alexa():
             print(f"[Erro ao lembrar contexto]: {e}")
             contexto = None
 
+
         mensagens = [
-            (
-                "system",
-                (
-                    "Você é Alexa, um assistente virtual inteligente que SEMPRE responde em português do Brasil. "
-                    "Seja claro, breve, amigável e NUNCA leia ou mencione asteriscos. "
-                    "Use ferramentas apenas quando necessário e explique de forma simples quando usar uma ferramenta. "
-                    "Seja descontraído, mas profissional. "
-                    "Se houver mensagens anteriores, utilize-as como contexto para melhorar sua resposta. "
-                    "Nunca invente informações e, se não souber, diga que não sabe. "
-                    "Se o usuário pedir para executar uma ação (como abrir apps, buscar vídeos, consultar temperatura, etc), utilize as ferramentas disponíveis. "
-                    "Caso a resposta seja apenas informativa, responda com seu próprio conhecimento."
-                ),
-            ),
+            ("system", (
+                "Você é Alexa, um assistente virtual inteligente que SEMPRE responde em português do Brasil. "
+                "Seja claro, breve, amigável e NUNCA leia ou mencione asteriscos. "
+                "Use ferramentas apenas quando necessário e explique de forma simples quando usar uma ferramenta. "
+                "Seja descontraído, mas profissional. "
+                "Se houver mensagens anteriores, utilize-as como contexto para melhorar sua resposta. "
+                "Nunca invente informações e, se não souber, diga que não sabe. "
+                "Se o usuário pedir para executar uma ação (como abrir apps, buscar vídeos, consultar temperatura, etc), utilize as ferramentas disponíveis. "
+                "Caso a resposta seja apenas informativa, responda com seu próprio conhecimento."
+            )),
         ]
 
-        # Adiciona o contexto como uma 'mensagem do usuário anterior'
         if contexto:
-            mensagens.append(("human", contexto))
+            mensagens.append(("human", self.escapar_chaves(contexto)))
 
-        # A pergunta atual
-        mensagens.append(("human", comando))
+        mensagens.append(("human", self.escapar_chaves(comando)))
 
-        # Placeholder do agente
-        mensagens.append(("placeholder", "{agent_scratchpad}"))
+        mensagens.append(MessagesPlaceholder(variable_name="agent_scratchpad"))
 
         prompt = ChatPromptTemplate.from_messages(mensagens)
 
         
 
-        tools = [temperaturas, ver_videos, pesquisar, data_atual, hora_atual, buscar_cotacoes, abrir_apps, sugerir_commit, gerar_descricao]
+        tools = [temperaturas, ver_videos, pesquisar, data_atual, hora_atual, buscar_cotacoes, abrir_apps, gerar_mensagem_commit]
         agent = create_tool_calling_agent(
             llm=self.llm,
             tools=tools,
