@@ -1,24 +1,24 @@
 import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
 
-import speech_recognition as sr
-from utiuls.functions import *
-from langchain_core.prompts import ChatPromptTemplate
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from decouple import config
-from langchain_groq import ChatGroq
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+
 import asyncio
+
 import edge_tts
 import pygame
+import speech_recognition as sr
+from decouple import config
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_groq import ChatGroq
+
 from database import buscas_e_contextos
-from langchain_core.prompts import MessagesPlaceholder
-
-
+from utiuls.functions import *
 
 rec = sr.Recognizer()
 
 
-class Alexa():
+class Alexa:
     def __init__(self):
         self.main()
 
@@ -26,8 +26,8 @@ class Alexa():
     def main(self):
         while True:
             print("ouvindo...")
-            #comando = self.escutar_comando()
-            comando = input(": ")
+            comando = self.escutar_comando()
+            # comando = input(": ")
             print(comando)
 
             if "obrigado" in comando:
@@ -42,6 +42,7 @@ class Alexa():
     def escapar_chaves(self, texto: str) -> str:
         return texto.replace("{", "{{").replace("}", "}}")
 
+
     def assistente(self, comando: str) -> str:
         api_key = config("API_KEY")
         self.llm = ChatGroq(model="llama3-70b-8192", api_key=api_key, temperature=0.2)
@@ -51,18 +52,20 @@ class Alexa():
             print(f"[Erro ao lembrar contexto]: {e}")
             contexto = None
 
-
         mensagens = [
-            ("system", (
-                "Você é Alexa, um assistente virtual inteligente que SEMPRE responde em português do Brasil. "
-                "Seja claro, breve, amigável e NUNCA leia ou mencione asteriscos. "
-                "Use ferramentas apenas quando necessário e explique de forma simples quando usar uma ferramenta. "
-                "Seja descontraído, mas profissional. "
-                "Se houver mensagens anteriores, utilize-as como contexto para melhorar sua resposta. "
-                "Nunca invente informações e, se não souber, diga que não sabe. "
-                "Se o usuário pedir para executar uma ação (como abrir apps, buscar vídeos, consultar temperatura, etc), utilize as ferramentas disponíveis. "
-                "Caso a resposta seja apenas informativa, responda com seu próprio conhecimento."
-            )),
+            (
+                "system",
+                (
+                    "Você é Alexa, um assistente virtual inteligente que SEMPRE responde em português do Brasil. "
+                    "Seja claro, breve, amigável e NUNCA leia ou mencione asteriscos. "
+                    "Use ferramentas apenas quando necessário e explique de forma simples quando usar uma ferramenta. "
+                    "Seja descontraído, mas profissional. "
+                    "Se houver mensagens anteriores, utilize-as como contexto para melhorar sua resposta. "
+                    "Nunca invente informações e, se não souber, diga que não sabe. "
+                    "Se o usuário pedir para executar uma ação (como abrir apps, buscar vídeos, consultar temperatura, etc), utilize as ferramentas disponíveis. "
+                    "Caso a resposta seja apenas informativa, responda com seu próprio conhecimento."
+                ),
+            ),
         ]
 
         if contexto:
@@ -74,16 +77,19 @@ class Alexa():
 
         prompt = ChatPromptTemplate.from_messages(mensagens)
 
-        
+        tools = [
+            temperaturas,
+            ver_videos,
+            pesquisar,
+            data_atual,
+            hora_atual,
+            buscar_cotacoes,
+            abrir_apps,
+            gerar_mensagem_commit,
+        ]
+        agent = create_tool_calling_agent(llm=self.llm, tools=tools, prompt=prompt)
 
-        tools = [temperaturas, ver_videos, pesquisar, data_atual, hora_atual, buscar_cotacoes, abrir_apps, gerar_mensagem_commit]
-        agent = create_tool_calling_agent(
-            llm=self.llm,
-            tools=tools,
-            prompt=prompt
-        )
-
-        agente_executor = AgentExecutor(        
+        agente_executor = AgentExecutor(
             agent=agent,
             tools=tools,
             verbose=True,
@@ -91,10 +97,12 @@ class Alexa():
         )
 
         try:
-            resposta = agente_executor.invoke({
-                "input": comando  # Apenas o comando, pois o contexto já está no prompt
-            })
-            return resposta['output']
+            resposta = agente_executor.invoke(
+                {
+                    "input": comando  # Apenas o comando, pois o contexto já está no prompt
+                }
+            )
+            return resposta["output"]
         except Exception as e:
             print(f"[Erro no agente]: {e}")
             return self.llm.invoke(comando)
@@ -115,10 +123,10 @@ class Alexa():
                 continue
             else:
                 if "Alexa" in texto:
-                    texto = texto.replace('Alexa', '')
+                    texto = texto.replace("Alexa", "")
 
             return texto.lower()
-        
+
 
     async def voz_assistente(self, texto: str) -> None:
         comunicador = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural")
@@ -129,9 +137,6 @@ class Alexa():
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             pygame.time.Clock().tick(10)
-
-
-   
 
 
 Alexa()
