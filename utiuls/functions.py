@@ -9,6 +9,7 @@ from decouple import config
 from langchain.agents import tool
 from langchain_groq import ChatGroq
 
+
 api_key = config("API_KEY")
 llm = ChatGroq(model="llama3-70b-8192", api_key=api_key)
 
@@ -65,7 +66,7 @@ def buscar_cotacoes(cotacao: str) -> str:
         dados = r.json()
         resultado = dados[cotacao.upper() + "BRL"]["bid"]
         resultado = float(resultado)
-        print(f"R$ {resultado:.2f}")
+        return f"R$ {resultado:.2f}"
     else:
         return "Erro ao buscar cotação."
 

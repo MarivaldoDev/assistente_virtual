@@ -15,6 +15,7 @@ from langchain_groq import ChatGroq
 from database import buscas_e_contextos
 from utiuls.functions import *
 
+
 rec = sr.Recognizer()
 
 
@@ -26,9 +27,8 @@ class Alexa:
     def main(self):
         while True:
             print("ouvindo...")
-            comando = self.escutar_comando()
-            # comando = input(": ")
-            print(comando)
+            #comando = self.escutar_comando()
+            comando = input(": ")
 
             if "obrigado" in comando:
                 asyncio.run(self.voz_assistente("De nada, estou aqui para ajudar!"))
@@ -130,10 +130,10 @@ class Alexa:
 
     async def voz_assistente(self, texto: str) -> None:
         comunicador = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural")
-        await comunicador.save(r"audio/fala.mp3")
+        await comunicador.save(r"voz_ia.mp3")
 
         pygame.mixer.init()
-        pygame.mixer.music.load(r"audio/fala.mp3")
+        pygame.mixer.music.load(r"voz_ia.mp3")
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             pygame.time.Clock().tick(10)

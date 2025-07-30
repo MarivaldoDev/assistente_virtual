@@ -1,7 +1,7 @@
+audio/
+__pycache__/
+memoria.db
 venv
 .env
-pycache
-__pycache__
-
-# Ignore the database file
-/memoria.db
+.vscode
+voz_ia.mp3
