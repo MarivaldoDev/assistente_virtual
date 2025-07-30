@@ -4,6 +4,7 @@ repos:
     hooks:
     -   id: black
         name: Fomatando código com Black
+        entry: black src/alexa.py && black src/utils/functions.py
         stages: [pre-commit]
 
 repos:
