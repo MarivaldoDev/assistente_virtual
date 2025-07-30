@@ -141,7 +141,7 @@ def classificar_mudanca(descricao: str) -> str:
 
 @tool
 def gerar_mensagem_commit() -> str:
-    """Gera uma mensagem de commit semântico com base nas alterações staged, SEMPRE especificando o TIṔO do commit.
+    """Gera uma mensagem de commit semântico com base nas alterações staged, SEMPRE especificando o TIPO do commit.
     SEMPRE mostre a mensagem de commit pulando duas linhas depois do contexto das mudanças.
     OBS: Ignore as as mudanças em arquivos de audio, vídeo, imagem e outros arquivos binários.
     """
