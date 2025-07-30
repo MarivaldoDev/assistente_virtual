@@ -13,7 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_groq import ChatGroq
 
 from database import buscas_e_contextos
-from utiuls.functions import *
+from utils.functions import *
 
 
 rec = sr.Recognizer()
