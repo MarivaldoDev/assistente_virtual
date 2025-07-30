@@ -4,6 +4,7 @@ repos:
     hooks:
     -   id: black
         name: Fomatando código com Black
+        stages: [pre-commit]
 
 repos:
 -   repo: local
