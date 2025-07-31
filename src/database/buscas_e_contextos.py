@@ -3,29 +3,35 @@ from difflib import SequenceMatcher
 
 
 def salvar_memoria(comando: str, resposta: str):
-    con = sqlite3.connect('memoria.db')
+    con = sqlite3.connect("memoria.db")
     cursor = con.cursor()
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS memoria (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             comando TEXT NOT NULL,
             resposta TEXT NOT NULL
         )
-    ''')
+    """
+    )
 
-    cursor.execute('INSERT INTO memoria (comando, resposta) VALUES (?, ?)', (comando, resposta))
+    cursor.execute(
+        "INSERT INTO memoria (comando, resposta) VALUES (?, ?)", (comando, resposta)
+    )
     con.commit()
+
     con.close()
 
 
 def similaridade(a: str, b: str) -> float:
+
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 
 def lembrar_contexto(pergunta_atual: str, limiar: float = 0.6):
-    con = sqlite3.connect('memoria.db')
+    con = sqlite3.connect("memoria.db")
     cursor = con.cursor()
-    cursor.execute('SELECT comando, resposta FROM memoria')
+    cursor.execute("SELECT comando, resposta FROM memoria")
     memoria = cursor.fetchall()
     con.close()
 

@@ -23,11 +23,10 @@ class Alexa:
     def __init__(self):
         self.main()
 
-
     def main(self):
         while True:
             print("ouvindo...")
-            #comando = self.escutar_comando()
+            # comando = self.escutar_comando()
             comando = input(": ")
 
             if "obrigado" in comando:
@@ -38,10 +37,8 @@ class Alexa:
             asyncio.run(self.voz_assistente(resposta))
             buscas_e_contextos.salvar_memoria(comando, resposta)
 
-
     def escapar_chaves(self, texto: str) -> str:
         return texto.replace("{", "{{").replace("}", "}}")
-
 
     def assistente(self, comando: str) -> str:
         api_key = config("API_KEY")
@@ -107,7 +104,6 @@ class Alexa:
             print(f"[Erro no agente]: {e}")
             return self.llm.invoke(comando)
 
-
     def escutar_comando(self) -> str:
         while True:
             try:
@@ -126,7 +122,6 @@ class Alexa:
                     texto = texto.replace("Alexa", "")
 
             return texto.lower()
-
 
     async def voz_assistente(self, texto: str) -> None:
         comunicador = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural")

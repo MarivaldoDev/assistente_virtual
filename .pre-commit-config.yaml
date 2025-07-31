@@ -1,13 +1,4 @@
 repos:
--   repo: https://github.com/psf/black
-    rev: 24.4.2
-    hooks:
-    -   id: black
-        name: Fomatando código com Black
-        entry: black src/alexa.py && black src/utils/functions.py
-        stages: [pre-commit]
-
-repos:
 -   repo: local
     hooks:
     -   id: requirements
@@ -15,4 +6,11 @@ repos:
         entry: bash -c "venv/bin/pip3 freeze > requirements.txt && git add requirements.txt"
         language: system
         pass_filenames: false
+        stages: [pre-commit]
+
+-   repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+    -   id: black
+        name: Formatando código com Black
         stages: [pre-commit]
