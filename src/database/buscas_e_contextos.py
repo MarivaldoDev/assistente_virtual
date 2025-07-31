@@ -19,12 +19,10 @@ def salvar_memoria(comando: str, resposta: str):
         "INSERT INTO memoria (comando, resposta) VALUES (?, ?)", (comando, resposta)
     )
     con.commit()
-
     con.close()
 
 
 def similaridade(a: str, b: str) -> float:
-
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 
