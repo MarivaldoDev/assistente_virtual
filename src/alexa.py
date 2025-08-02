@@ -101,8 +101,7 @@ class Alexa:
             )
             return resposta["output"]
         except Exception as e:
-            print(f"[Erro no agente]: {e}")
-            return self.llm.invoke(comando)
+            print(f"[Erro ao executar agente]: {e}")
 
     def escutar_comando(self) -> str:
         while True:

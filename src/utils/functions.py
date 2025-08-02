@@ -25,7 +25,7 @@ def temperaturas(cidade: str) -> str:
         requisicao_dicionario = requisicao.json()
         temperatura = requisicao_dicionario["main"]["temp"] - 273.15
     except (requests.ConnectionError, requests.HTTPError):
-        return 0
+        return "Erro ao conectar com o serviço de clima."
     else:
         return f"{temperatura:.1f}"
 
@@ -40,8 +40,11 @@ def ver_videos(video: str) -> None:
 @tool
 def pesquisar(assunto: str) -> None:
     """Abre o navegador com os resultados da pesquisa do termo informado."""
-    url = f"https://www.google.com/search?q={assunto}"
-    webbrowser.open(url)
+    try:
+        url = f"https://www.google.com/search?q={assunto}"
+        webbrowser.open(url)
+    except Exception as e:
+        print(f"[Erro ao pesquisar]: {e}")
 
 
 @tool
@@ -74,7 +77,10 @@ def buscar_cotacoes(cotacao: str) -> str:
 @tool
 def abrir_apps(app: str) -> None:
     """Abre o aplicativo informado lembrando sempre que estamos no Linux."""
-    os.system(f"{app}")
+    try:
+        os.system(f"{app}")
+    except Exception as e:
+        print(f"[Erro ao abrir aplicativo]: {e}")
 
 
 def sugerir_commit():
@@ -141,8 +147,8 @@ def classificar_mudanca(descricao: str) -> str:
 
 @tool
 def gerar_mensagem_commit() -> str:
-    """Gera uma mensagem de commit semântico com base nas alterações staged, SEMPRE especificando o TIPO do commit.
-    SEMPRE mostre a mensagem de commit pulando duas linhas depois do contexto das mudanças.
+    """Gere uma mensagem de commit semântico com base nas alterações staged, SEMPRE no formato 'tipo: descrição'.
+    Exemplo: 'feat: Adiciona nova funcionalidade X'. Quero que a descrição seja clara e concisa, e que o tipo do commit seja classificado corretamente.
     OBS: Ignore as as mudanças em arquivos de audio, vídeo, imagem e outros arquivos binários.
     """
     diff = sugerir_commit()  # pega o diff atual
