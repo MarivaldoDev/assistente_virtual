@@ -8,6 +8,7 @@ import requests
 from decouple import config
 from langchain.agents import tool
 from langchain_groq import ChatGroq
+from tkinter import filedialog
 
 
 api_key = config("API_KEY")
@@ -28,13 +29,6 @@ def temperaturas(cidade: str) -> str:
         return "Erro ao conectar com o serviço de clima."
     else:
         return f"{temperatura:.1f}"
-
-
-@tool
-def ver_videos(video: str) -> None:
-    """Abre o navegador com os vídeos relacionados ao termo pesquisado."""
-    videos = f"https://www.youtube.com/results?search_query={video}"
-    webbrowser.open(videos)
 
 
 @tool
@@ -85,10 +79,14 @@ def abrir_apps(app: str) -> None:
 
 def sugerir_commit():
     """Sugere um commit baseado nas alterações feitas no repositório."""
-    CAMINHO_REPO = Path(
-        "/home/mariva/Documentos/projetos/assistente_virtual"
-    )  # Ex: Path("/home/mariva/Documentos/meu_projeto")
-
+    try:
+        repositorio = filedialog.askdirectory(title="Selecione o repositório Git")
+        CAMINHO_REPO = Path(
+            repositorio
+        )  # Ex: Path("/home/mariva/Documentos/meu_projeto")
+    except Exception as e:
+        print(f"[Erro ao selecionar repositório]: {e}")
+        return "Não foi possível acessar o repositório."
     # Abrir repositório
     repo = git.Repo(CAMINHO_REPO)
     diff = repo.git.diff("--cached")  # apenas os arquivos adicionados com `git add`

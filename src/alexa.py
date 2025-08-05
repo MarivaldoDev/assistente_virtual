@@ -76,7 +76,6 @@ class Alexa:
 
         tools = [
             temperaturas,
-            ver_videos,
             pesquisar,
             data_atual,
             hora_atual,
