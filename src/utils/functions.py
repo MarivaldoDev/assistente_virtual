@@ -6,21 +6,21 @@ from pathlib import Path
 import git
 import requests
 from decouple import config
-from langchain.agents import tool
+from langchain.tools import tool
 from langchain_groq import ChatGroq
 from tkinter import filedialog
 
 
 api_key = config("API_KEY")
-llm = ChatGroq(model="llama3-70b-8192", api_key=api_key)
+llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=api_key)
 
 
 @tool
 def temperaturas(cidade: str) -> str:
     """Retorna APENAS A TEMPERATURA atual da cidade informada."""
     try:
-        api_key = config("API_KEY_CLIMA")
-        site = f"https://api.openweathermap.org/data/2.5/weather?q={cidade}&appid={api_key}&lang=pt_br"
+        api_clima = config("API_CLIMA")
+        site = f"https://api.openweathermap.org/data/2.5/weather?q={cidade}&appid={api_clima}&lang=pt_br"
 
         requisicao = requests.get(site)
         requisicao_dicionario = requisicao.json()
@@ -32,13 +32,15 @@ def temperaturas(cidade: str) -> str:
 
 
 @tool
-def pesquisar(assunto: str) -> None:
+def pesquisar(assunto: str) -> str:
     """Abre o navegador com os resultados da pesquisa do termo informado."""
     try:
         url = f"https://www.google.com/search?q={assunto}"
         webbrowser.open(url)
+        return "Pesquisa realizada com sucesso."
     except Exception as e:
         print(f"[Erro ao pesquisar]: {e}")
+        return f"Erro ao pesquisar: {e}"
 
 
 @tool
@@ -50,7 +52,7 @@ def hora_atual() -> str:
 @tool
 def data_atual() -> str:
     """Retorna a data atual."""
-    return datetime.now().strftime("%d/%m/%Y")
+    return str(datetime.now().strftime("%d/%m/%Y"))
 
 
 @tool
@@ -69,29 +71,34 @@ def buscar_cotacoes(cotacao: str) -> str:
 
 
 @tool
-def abrir_apps(app: str) -> None:
+def abrir_apps(app: str) -> str:
     """Abre o aplicativo informado lembrando sempre que estamos no Linux."""
     try:
         os.system(f"{app}")
+        return f"Aplicativo {app} aberto com sucesso."
     except Exception as e:
         print(f"[Erro ao abrir aplicativo]: {e}")
+        return f"Erro ao abrir aplicativo: {e}"
 
 
 def sugerir_commit():
-    """Sugere um commit baseado nas alterações feitas no repositório."""
     try:
         repositorio = filedialog.askdirectory(title="Selecione o repositório Git")
-        CAMINHO_REPO = Path(
-            repositorio
-        )  # Ex: Path("/home/mariva/Documentos/meu_projeto")
-    except Exception as e:
-        print(f"[Erro ao selecionar repositório]: {e}")
-        return "Não foi possível acessar o repositório."
-    # Abrir repositório
-    repo = git.Repo(CAMINHO_REPO)
-    diff = repo.git.diff("--cached")  # apenas os arquivos adicionados com `git add`
+        if not repositorio:
+            return "Nenhum repositório selecionado."
+        CAMINHO_REPO = Path(repositorio)
+    except Exception:
+        return "Erro ao acessar o repositório."
 
-    return diff
+    try:
+        repo = git.Repo(CAMINHO_REPO)
+        diff = repo.git.diff("--cached")
+        if not diff:
+            return "Nenhuma mudança encontrada."
+        return diff
+    except Exception:
+        return "Erro ao obter diff."
+
 
 
 def gerar_descricao_llm(diff_texto: str) -> str:
@@ -148,6 +155,7 @@ def gerar_mensagem_commit() -> str:
     """Gere uma mensagem de commit semântico com base nas alterações staged, SEMPRE no formato 'tipo: descrição'.
     Exemplo: 'feat: Adiciona nova funcionalidade X'. Quero que a descrição seja clara e concisa, e que o tipo do commit seja classificado corretamente.
     OBS: Ignore as as mudanças em arquivos de audio, vídeo, imagem e outros arquivos binários.
+    SEMPRE RETORNE A MENSAGEM EM APENAS UMA LINHA NO FORMATO CORRETO.
     """
     diff = sugerir_commit()  # pega o diff atual
     descricao = gerar_descricao_llm(diff)

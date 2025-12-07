@@ -1,3 +1,4 @@
+import json
 import os
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -8,9 +9,9 @@ import edge_tts
 import pygame
 import speech_recognition as sr
 from decouple import config
-from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_groq import ChatGroq
+from langchain_core.messages import ToolMessage, HumanMessage
 
 from database import buscas_e_contextos
 from utils.functions import *
@@ -21,13 +22,30 @@ rec = sr.Recognizer()
 
 class Alexa:
     def __init__(self):
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            api_key=config("API_KEY"),
+            temperature=0.2
+        )
+
+        self.tools = [
+            temperaturas,
+            pesquisar,
+            data_atual,
+            hora_atual,
+            buscar_cotacoes,
+            abrir_apps,
+            gerar_mensagem_commit
+        ]
+
         self.main()
+
 
     def main(self):
         while True:
             print("ouvindo...")
-            # comando = self.escutar_comando()
-            comando = input(": ")
+            comando = self.escutar_comando()
+            # comando = input(": ")
 
             if "obrigado" in comando:
                 asyncio.run(self.voz_assistente("De nada, estou aqui para ajudar!"))
@@ -40,67 +58,72 @@ class Alexa:
     def escapar_chaves(self, texto: str) -> str:
         return texto.replace("{", "{{").replace("}", "}}")
 
+
+
     def assistente(self, comando: str) -> str:
-        api_key = config("API_KEY")
-        self.llm = ChatGroq(model="llama3-70b-8192", api_key=api_key, temperature=0.2)
         try:
             contexto = buscas_e_contextos.lembrar_contexto(comando)
-        except Exception as e:
-            print(f"[Erro ao lembrar contexto]: {e}")
+        except:
             contexto = None
 
-        mensagens = [
-            (
-                "system",
-                (
-                    "Você é Alexa, um assistente virtual inteligente que SEMPRE responde em português do Brasil. "
-                    "Seja claro, breve, amigável e NUNCA leia ou mencione asteriscos. "
-                    "Use ferramentas apenas quando necessário e explique de forma simples quando usar uma ferramenta. "
-                    "Seja descontraído, mas profissional. "
-                    "Se houver mensagens anteriores, utilize-as como contexto para melhorar sua resposta. "
-                    "Nunca invente informações e, se não souber, diga que não sabe. "
-                    "Se o usuário pedir para executar uma ação (como abrir apps, buscar vídeos, consultar temperatura, etc), utilize as ferramentas disponíveis. "
-                    "Caso a resposta seja apenas informativa, responda com seu próprio conhecimento."
-                ),
-            ),
-        ]
+        prompt = ChatPromptTemplate.from_messages([
+            ("system",
+            "Você é Alexa, um assistente virtual que responde sempre em português do Brasil.\n"
+            "Use ferramentas SOMENTE quando necessário e depois responda ao usuário com um texto natural.\n"
+            "Nunca retorne JSON ao usuário."),
+            ("system", contexto if contexto else "Sem contexto prévio."),
+            MessagesPlaceholder("messages")
+        ])
 
-        if contexto:
-            mensagens.append(("human", self.escapar_chaves(contexto)))
+        chain = prompt | self.llm.bind_tools(self.tools)
 
-        mensagens.append(("human", self.escapar_chaves(comando)))
+        primeira_resposta = chain.invoke({
+            "messages": [("human", comando)]
+        })
 
-        mensagens.append(MessagesPlaceholder(variable_name="agent_scratchpad"))
+        # Caso seja texto direto
+        if primeira_resposta.content:
+            return primeira_resposta.content
 
-        prompt = ChatPromptTemplate.from_messages(mensagens)
+        # Caso seja tool_call
+        tool_calls = primeira_resposta.additional_kwargs.get("tool_calls", None)
+        if not tool_calls:
+            return "Desculpe, não consegui entender sua solicitação."
 
-        tools = [
-            temperaturas,
-            pesquisar,
-            data_atual,
-            hora_atual,
-            buscar_cotacoes,
-            abrir_apps,
-            gerar_mensagem_commit,
-        ]
-        agent = create_tool_calling_agent(llm=self.llm, tools=tools, prompt=prompt)
+        tool_call = tool_calls[0]
+        tool_id = tool_call["id"]
+        tool_name = tool_call["function"]["name"]
+        tool_args = tool_call["function"]["arguments"]
 
-        agente_executor = AgentExecutor(
-            agent=agent,
-            tools=tools,
-            verbose=True,
-            handle_parsing_errors=True,
-        )
+        ferramenta = next((t for t in self.tools if t.name == tool_name), None)
+        if not ferramenta:
+            return f"Erro: ferramenta '{tool_name}' não encontrada."
 
         try:
-            resposta = agente_executor.invoke(
-                {
-                    "input": comando  # Apenas o comando, pois o contexto já está no prompt
-                }
-            )
-            return resposta["output"]
-        except Exception as e:
-            print(f"[Erro ao executar agente]: {e}")
+            parsed_args = json.loads(tool_args) if isinstance(tool_args, str) else tool_args
+        except Exception:
+            parsed_args = {}
+
+        resultado = ferramenta.invoke(parsed_args)
+
+        tool_message = ToolMessage(
+            content=str(resultado),
+            tool_call_id=tool_id,
+        )
+
+        segunda_resposta = chain.invoke({
+            "messages": [
+                HumanMessage(content=comando),
+                primeira_resposta,
+                tool_message
+            ]
+        })
+
+        print(segunda_resposta.content)
+
+        return segunda_resposta.content or "Desculpe, não consegui produzir a resposta final."
+
+
 
     def escutar_comando(self) -> str:
         while True:
@@ -121,12 +144,16 @@ class Alexa:
 
             return texto.lower()
 
+
     async def voz_assistente(self, texto: str) -> None:
+        if not isinstance(texto, str) or texto.strip() == "":
+            texto = "Desculpe, ocorreu um erro e não consegui entender a resposta."
+
         comunicador = edge_tts.Communicate(texto, voice="pt-BR-FranciscaNeural")
-        await comunicador.save(r"voz_ia.mp3")
+        await comunicador.save("voz_ia.mp3")
 
         pygame.mixer.init()
-        pygame.mixer.music.load(r"voz_ia.mp3")
+        pygame.mixer.music.load("voz_ia.mp3")
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             pygame.time.Clock().tick(10)
